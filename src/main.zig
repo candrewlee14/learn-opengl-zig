@@ -4,15 +4,38 @@ const gl = @import("gl");
 
 var gl_procs: gl.ProcTable = undefined;
 
-fn processInput(window: *const glfw.Window) void {
-    if (window.getKey(glfw.Key.escape) == glfw.Action.press) {
-        window.setShouldClose(true);
+const State = struct {
+    wireframe_mode: bool = false,
+    wireframe_latch: bool = false,
+
+    fn processInput(self: *State, window: *const glfw.Window) void {
+        if (window.getKey(glfw.Key.escape) == glfw.Action.press) {
+            window.setShouldClose(true);
+        }
+        switch (window.getKey(glfw.Key.f)) {
+            glfw.Action.press => {
+                if (self.wireframe_latch) return;
+                self.wireframe_latch = true;
+                self.wireframe_mode = !self.wireframe_mode;
+                if (self.wireframe_mode) {
+                    gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE);
+                } else {
+                    gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL);
+                }
+            },
+            glfw.Action.release => {
+                self.wireframe_latch = false;
+            },
+            else => {},
+        }
     }
-}
+};
 
 pub fn main() !void {
     if (!glfw.init(.{})) return error.InitFailed;
     defer glfw.terminate();
+
+    var state: State = .{};
 
     const window = glfw.Window.create(640, 480, "Triangle!", null, null, .{
         .context_version_major = gl.info.version_major,
@@ -51,9 +74,14 @@ pub fn main() !void {
     // 0,0 is the center of the window
     // 1 is the edge of the window
     const vertices = [_]gl.float{
-        -0.5, -0.5, 0.0,
-        0.5,  -0.5, 0.0,
-        0.0,  0.5,  0.0,
+        0.5, 0.5, 0.0, // top right
+        0.5, -0.5, 0.0, // bottom right
+        -0.5, -0.5, 0.0, // bottom left
+        -0.5, 0.5, 0.0, // top left
+    };
+    const indices = [_]gl.uint{
+        0, 1, 3, // first triangle
+        1, 2, 3, // second triangle
     };
     // vertex buffer object
     // this stores the vertex data
@@ -70,6 +98,14 @@ pub fn main() !void {
     // - static draw means the data is set once and used many times
     // - dynamic draw means the data is changed a lot and used many times
     gl.BufferData(gl.ARRAY_BUFFER, vertices.len * @sizeOf(gl.float), @ptrCast(&vertices), gl.STATIC_DRAW);
+
+    // element buffer object
+    // this stores the indices of the vertices
+    // so we can draw the vertices in a different order
+    var ebo: gl.uint = undefined;
+    gl.GenBuffers(1, @ptrCast(&ebo));
+    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+    gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, indices.len * @sizeOf(gl.uint), @ptrCast(&indices), gl.STATIC_DRAW);
 
     // we need to tell the vertex shader how to interpret the data
     // so now we set the vertex attributes pointers
@@ -160,13 +196,14 @@ pub fn main() !void {
 
     while (!window.shouldClose()) {
         // input
-        processInput(&window);
+        state.processInput(&window);
 
         // render commands
         gl.Clear(gl.COLOR_BUFFER_BIT);
         gl.UseProgram(shader_program);
         gl.BindVertexArray(vao);
-        gl.DrawArrays(gl.TRIANGLES, 0, 3);
+        gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+        gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
 
         // check and call events and swap the buffers
         window.swapBuffers();
