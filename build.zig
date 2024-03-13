@@ -1,4 +1,5 @@
 const std = @import("std");
+const zflecs = @import("zflecs");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -21,6 +22,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    const zflecs_pkg = zflecs.package(b, target, optimize, .{});
+    zflecs_pkg.link(exe);
 
     const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
         .api = .gl,
