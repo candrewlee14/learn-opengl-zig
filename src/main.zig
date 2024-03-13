@@ -74,14 +74,28 @@ pub fn main() !void {
     // 0,0 is the center of the window
     // 1 is the edge of the window
     const vertices = [_]gl.float{
-        0.5, 0.5, 0.0, // top right
-        0.5, -0.5, 0.0, // bottom right
-        -0.5, -0.5, 0.0, // bottom left
-        -0.5, 0.5, 0.0, // top left
+        0.2,  0.5,  0,
+        -0.2, 0.5,  0,
+        -0.2, -0.5, 0,
+        0.2,  -0.5, 0,
+        0.2,  0,    0,
+        0.5,  0,    0,
+        0.5,  0.2,  0,
+        0.2,  0.2,  0,
+        0.2,  0.3,  0,
+        0.6,  0.3,  0,
+        0.6,  0.5,  0,
     };
     const indices = [_]gl.uint{
-        0, 1, 3, // first triangle
-        1, 2, 3, // second triangle
+        2, 3, 0,
+        7, 4, 6,
+        0, 8, 10,
+    };
+
+    const indices2 = [_]gl.uint{
+        0, 1, 2,
+        4, 5, 6,
+        8, 9, 10,
     };
     // vertex buffer object
     // this stores the vertex data
@@ -106,6 +120,11 @@ pub fn main() !void {
     gl.GenBuffers(1, @ptrCast(&ebo));
     gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
     gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, indices.len * @sizeOf(gl.uint), @ptrCast(&indices), gl.STATIC_DRAW);
+
+    var ebo2: gl.uint = undefined;
+    gl.GenBuffers(1, @ptrCast(&ebo2));
+    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo2);
+    gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, indices2.len * @sizeOf(gl.uint), @ptrCast(&indices2), gl.STATIC_DRAW);
 
     // we need to tell the vertex shader how to interpret the data
     // so now we set the vertex attributes pointers
@@ -175,6 +194,27 @@ pub fn main() !void {
         std.debug.print("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n{s}\n", .{info_log[0..]});
     }
 
+    const fragment_shader_source2 =
+        \\out vec4 FragColor;
+        \\
+        \\void main() {
+        \\    FragColor = vec4(0.5f, 1.0f, 0.2f, 1.0f);
+        \\}
+    ;
+    const fragment_shader2 = gl.CreateShader(gl.FRAGMENT_SHADER);
+    gl.ShaderSource(
+        fragment_shader2,
+        2,
+        &[_][*]const u8{ shader_source_preamble, fragment_shader_source2 },
+        &[_]gl.int{ shader_source_preamble.len, fragment_shader_source2.len },
+    );
+    gl.CompileShader(fragment_shader2);
+    gl.GetShaderiv(fragment_shader2, gl.COMPILE_STATUS, &success);
+    if (success != 1) {
+        gl.GetShaderInfoLog(fragment_shader2, 512, null, &info_log);
+        std.debug.print("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n{s}\n", .{info_log[0..]});
+    }
+
     // now we create a shader program
     // this is a program that runs on the GPU
     // it is made up of a vertex shader and a fragment shader
@@ -190,9 +230,20 @@ pub fn main() !void {
         std.debug.print("ERROR::SHADER::PROGRAM::LINKING_FAILED\n{s}\n", .{info_log[0..]});
     }
 
+    const shader_program2 = gl.CreateProgram();
+    gl.AttachShader(shader_program2, vertex_shader);
+    gl.AttachShader(shader_program2, fragment_shader2);
+    gl.LinkProgram(shader_program2);
+    gl.GetProgramiv(shader_program2, gl.LINK_STATUS, &success);
+    if (success != 1) {
+        gl.GetProgramInfoLog(shader_program2, 512, null, &info_log);
+        std.debug.print("ERROR::SHADER::PROGRAM::LINKING_FAILED\n{s}\n", .{info_log[0..]});
+    }
+
     // delete the shaders as they are no longer needed, we only use the program now
     gl.DeleteShader(vertex_shader);
     gl.DeleteShader(fragment_shader);
+    gl.DeleteShader(fragment_shader2);
 
     while (!window.shouldClose()) {
         // input
@@ -203,7 +254,12 @@ pub fn main() !void {
         gl.UseProgram(shader_program);
         gl.BindVertexArray(vao);
         gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
-        gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
+        gl.DrawElements(gl.TRIANGLES, indices.len, gl.UNSIGNED_INT, 0);
+
+        gl.UseProgram(shader_program2);
+        gl.BindVertexArray(vao);
+        gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo2);
+        gl.DrawElements(gl.TRIANGLES, indices2.len, gl.UNSIGNED_INT, 0);
 
         // check and call events and swap the buffers
         window.swapBuffers();
