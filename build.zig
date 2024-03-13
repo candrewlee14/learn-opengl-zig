@@ -1,10 +1,22 @@
 const std = @import("std");
 const zflecs = @import("zflecs");
 
+const Prog = struct {
+    run_name: []const u8,
+    name: []const u8,
+    root: []const u8,
+};
+
+const progs = [_]Prog{
+    .{ .run_name = "00", .name = "hello-window", .root = "src/00_hello_window.zig" },
+    .{ .run_name = "01.0", .name = "hello-triangle-pt1", .root = "src/01.0_hello_triangle.zig" },
+    .{ .run_name = "01.1", .name = "hello-triangle-pt2", .root = "src/01.1_hello_triangle.zig" },
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -16,15 +28,8 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "learn-opengl-zig",
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const zflecs_pkg = zflecs.package(b, target, optimize, .{});
-    zflecs_pkg.link(exe);
+    // const zflecs_pkg = zflecs.package(b, target, optimize, .{});
+    // zflecs_pkg.link(exe);
 
     const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
         .api = .gl,
@@ -33,64 +38,43 @@ pub fn build(b: *std.Build) void {
         .extensions = &.{ .ARB_clip_control, .NV_scissor_exclusive },
     });
 
-    exe.root_module.addImport("gl", gl_bindings);
-
     const mach_glfw_dep = b.dependency("mach-glfw", .{
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("glfw", mach_glfw_dep.module("mach-glfw"));
 
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
-    b.installArtifact(exe);
-
-    // This *creates* a Run step in the build graph, to be executed when another
-    // step is evaluated that depends on it. The next line below will establish
-    // such a dependency.
-    const run_cmd = b.addRunArtifact(exe);
-
-    // By making the run step depend on the install step, it will be run from the
-    // installation directory rather than directly from within the cache directory.
-    // This is not necessary, however, if the application depends on other installed
-    // files, this ensures they will be present and in the expected location.
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build run`
-    // This will evaluate the `run` step rather than the default, which is "install".
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-
-    // Creates a step for unit testing. This only builds the test executable
-    // but does not run it.
-    const lib_unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/root.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-
-    const exe_unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
+    const all_step = b.step("all", "Build all examples");
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
-    test_step.dependOn(&run_exe_unit_tests.step);
+
+    for (progs) |prog| {
+        const exe = b.addExecutable(.{
+            .name = prog.name,
+            .root_source_file = .{ .path = prog.root },
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("glfw", mach_glfw_dep.module("mach-glfw"));
+        exe.root_module.addImport("gl", gl_bindings);
+
+        const build_step = b.addInstallArtifact(exe, .{});
+
+        all_step.dependOn(&build_step.step);
+
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(&build_step.step);
+        if (b.args) |args| {
+            run_cmd.addArgs(args);
+        }
+        const run_step = b.step(prog.run_name, b.fmt("Run {s}", .{prog.name}));
+        run_step.dependOn(&run_cmd.step);
+
+        const exe_unit_tests = b.addTest(.{
+            .root_source_file = .{ .path = prog.root },
+            .target = target,
+            .optimize = optimize,
+        });
+
+        const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+        test_step.dependOn(&run_exe_unit_tests.step);
+    }
 }
