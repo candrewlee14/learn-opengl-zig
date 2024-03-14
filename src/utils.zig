@@ -2,6 +2,10 @@ const std = @import("std");
 const glfw = @import("glfw");
 const gl = @import("gl");
 
+pub inline fn thisDir() []const u8 {
+    return comptime std.fs.path.dirname(@src().file) orelse ".";
+}
+
 const shader_source_preamble = switch (gl.info.api) {
     .gl => (
         \\#version 410 core

@@ -1,5 +1,6 @@
 const std = @import("std");
 const zflecs = @import("zflecs");
+const zstbi = @import("zstbi");
 
 const Prog = struct {
     run_name: []const u8,
@@ -8,10 +9,11 @@ const Prog = struct {
 };
 
 const progs = [_]Prog{
-    .{ .run_name = "00", .name = "hello-window", .root = "src/00_hello_window.zig" },
+    .{ .run_name = "00.0", .name = "hello-window", .root = "src/00.0_hello_window.zig" },
     .{ .run_name = "01.0", .name = "hello-triangle-pt1", .root = "src/01.0_hello_triangle.zig" },
     .{ .run_name = "01.1", .name = "hello-triangle-pt2", .root = "src/01.1_hello_triangle.zig" },
-    .{ .run_name = "02.0", .name = "shaders-pt1", .root = "src/02.0_shaders.zig" },
+    .{ .run_name = "02.0", .name = "shaders", .root = "src/02.0_shaders.zig" },
+    .{ .run_name = "03.0", .name = "textures", .root = "src/03.0_textures.zig" },
 };
 
 // Although this function looks imperative, note that its job is to
@@ -44,6 +46,8 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    const zstbi_pkg = zstbi.package(b, target, optimize, .{});
+
     const all_step = b.step("all", "Build all examples");
     const test_step = b.step("test", "Run unit tests");
 
@@ -56,6 +60,7 @@ pub fn build(b: *std.Build) !void {
         });
         exe.root_module.addImport("glfw", mach_glfw_dep.module("mach-glfw"));
         exe.root_module.addImport("gl", gl_bindings);
+        zstbi_pkg.link(exe);
 
         const build_step = b.addInstallArtifact(exe, .{});
 
