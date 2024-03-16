@@ -13,7 +13,8 @@ const progs = [_]Prog{
     .{ .run_name = "01.0", .name = "hello-triangle-pt1", .root = "src/01.0_hello_triangle.zig" },
     .{ .run_name = "01.1", .name = "hello-triangle-pt2", .root = "src/01.1_hello_triangle.zig" },
     .{ .run_name = "02.0", .name = "shaders", .root = "src/02.0_shaders.zig" },
-    .{ .run_name = "03.0", .name = "textures", .root = "src/03.0_textures.zig" },
+    .{ .run_name = "03.0", .name = "textures-pt1", .root = "src/03.0_textures.zig" },
+    .{ .run_name = "03.1", .name = "textures-pt2", .root = "src/03.1_textures.zig" },
 };
 
 // Although this function looks imperative, note that its job is to
