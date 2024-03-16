@@ -25,6 +25,7 @@
         },
         .zstbi = .{ .path = "libs/zstbi" },
         .zflecs = .{ .path = "libs/zflecs" },
+        .zmath = .{ .path = "libs/zmath" },
     },
     .paths = .{
         // This makes *all* files, recursively, included in this package. It is generally

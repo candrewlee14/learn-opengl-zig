@@ -1,6 +1,7 @@
 const std = @import("std");
 const zflecs = @import("zflecs");
 const zstbi = @import("zstbi");
+const zmath = @import("zmath");
 
 const Prog = struct {
     run_name: []const u8,
@@ -49,6 +50,10 @@ pub fn build(b: *std.Build) !void {
 
     const zstbi_pkg = zstbi.package(b, target, optimize, .{});
 
+    const zmath_pkg = zmath.package(b, target, optimize, .{
+        .options = .{ .enable_cross_platform_determinism = true },
+    });
+
     const all_step = b.step("all", "Build all examples");
     const test_step = b.step("test", "Run unit tests");
 
@@ -59,9 +64,11 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
         });
+
         exe.root_module.addImport("glfw", mach_glfw_dep.module("mach-glfw"));
         exe.root_module.addImport("gl", gl_bindings);
         zstbi_pkg.link(exe);
+        zmath_pkg.link(exe);
 
         const build_step = b.addInstallArtifact(exe, .{});
 
