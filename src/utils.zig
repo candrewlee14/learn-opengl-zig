@@ -105,4 +105,7 @@ pub const Shader = struct {
     pub fn setFloat(self: *const Shader, name: [:0]const u8, value: gl.float) void {
         gl.Uniform1f(gl.GetUniformLocation(self.id, @ptrCast(name.ptr)), value);
     }
+    pub fn setMatrix4(self: *const Shader, name: [:0]const u8, value: *const [16]gl.float) void {
+        gl.UniformMatrix4fv(gl.GetUniformLocation(self.id, @ptrCast(name.ptr)), 1, gl.FALSE, @ptrCast(value));
+    }
 };
